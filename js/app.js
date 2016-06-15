@@ -65,14 +65,12 @@ $(document).ready(function(){
         };
 
         this.createChildColumn = function (ids) {
-            var ul = document.createElement('ul'),
+            var ul = $('<ul class="tree"></ul>'),
                 el, tmpl, thatEl;
-
-            ul.className = 'tree';
 
             for(var id in ids) {
                 thatEl = self.config.cache[ids[id]].parentId;
-                el = document.getElementById(thatEl);
+                el = $('#' + thatEl);
 
                 tmpl = new self.RenderTree({
                     data: self.config.cache[ids[id]],
@@ -80,10 +78,9 @@ $(document).ready(function(){
                     template: _.template(document.getElementById('organigram-template').innerHTML)
                 });
 
-                // el = document.getElementById(self.config.thatEl);
 
-                ul.appendChild(tmpl.getElem());
-                el.appendChild(ul);
+                ul.append(tmpl.getElem());
+                el.append(ul);
             }
         };
 

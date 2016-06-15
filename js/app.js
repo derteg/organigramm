@@ -8,7 +8,7 @@ $(document).ready(function(){
     function Organigramm () {
         var self = this,
             workspace = document.getElementById('organigram'),
-            canvas = workspace.querySelector('.organigram__canvas');
+            canvas = $('.organigram__canvas').get(0);
 
         this.config = {
             thatEl: '',

@@ -61,7 +61,7 @@ $(document).ready(function(){
 
             self.config.thatEl = self.config.cache[id].parentId;
 
-            canvas.appendChild(tmpl.getElem());
+            canvas.append(tmpl.getElem());
         };
 
         this.createChildColumn = function (ids) {

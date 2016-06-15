@@ -1,0 +1,48 @@
+{
+    "1": {
+        "userId": 1,
+        "haveData": true, // флаг для AJAX. Загруженны ли данные о потомках.
+        "parentId": 0,
+        "level": 1,
+        "breadcrumbs": "Руководители",
+        "children": [2,3],
+        "name": "name_01",
+        "post": "Генеральный директор",
+        "link": "#123",
+        "avatar": "/url/to/pic.jpg",
+        "city": "Kazan",
+        "phone": "+7 111 222 99 33"
+    },
+    "2": {
+        "userId": 2,
+        "haveData": true,
+        "parentId": 1,
+        "level": 2,
+        "breadcrumbs": "Зместители",
+        "children": 3,
+        "name": "name_02",
+        "post": "Заместитель генерального директора",
+        "phone": "+7 111 222 99 33"
+    },
+    "3": {
+        "userId": 3,
+        "haveData": false,
+        "parentId": 1,
+        "level": 2,
+        "breadcrumbs": "Зместители",
+        "children": [4],
+        "name": "name_03",
+        "link": "#123",
+        "post": "Директор по маркетингу"
+    },
+    "5": {
+        "userId": 5,
+        "haveData": false,
+        "parentId": 2,
+        "level": 3,
+        "breadcrumbs": "Подразделения и регионы",
+        "children": [],
+        "name": "name_04",
+        "post": "Директор магазина"
+    }
+}

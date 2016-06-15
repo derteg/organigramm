@@ -70,7 +70,7 @@ $(document).ready(function(){
 
             for(var id in ids) {
                 thatEl = self.config.cache[ids[id]],
-                thatParentId = that.parentId;
+                thatParentId = thatEl.parentId;
                 el = $('#' + thatParentId);
 
                 tmpl = new self.RenderTree({

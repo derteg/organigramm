@@ -18,7 +18,7 @@ $(document).ready(function(){
         this.initEvents = function () {
             self.getData();
 
-            canvas.onclick = self.handleGrowTree;
+            
         };
 
         this.handleGrowTree = function (event) {
@@ -39,12 +39,10 @@ $(document).ready(function(){
 
             for(var id in obj) {
                 if(!obj[id].parentId) {
-                    rootID = id;
-                    childrenArr = self.config.cache[rootID].children;
-
                     // отрисовываем корневоей элемент
                     self.createRootColumn(id);
 
+                    childrenArr = self.config.cache[id].children;
                     // отрисовываем второй уровень
                     self.createChildColumn(childrenArr);
                 } else {

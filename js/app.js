@@ -66,12 +66,12 @@ $(document).ready(function(){
 
         this.createChildColumn = function (ids) {
             var ul = $('<ul class="tree"></ul>'),
-                el, tmpl, thatEl;
+                el, tmpl, thatEl, thatParentId;
 
             for(var id in ids) {
-                var thatId = ids[id];
-                thatEl = self.config.cache[thatId].parentId;
-                el = $('#' + thatEl);
+                thatEl = self.config.cache[ids[id]],
+                thatParentId = that.parentId;
+                el = $('#' + thatParentId);
 
                 tmpl = new self.RenderTree({
                     data: self.config.cache[ids[id]],

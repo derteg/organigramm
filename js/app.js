@@ -33,23 +33,34 @@ $(document).ready(function(){
         };
 
         this.handleTree = function (obj) {
-            var rootID,
-                childrenArr;
+            var parentID,
+                childrenArr = [];
+
             self.config.cache = obj;
 
             for(var id in obj) {
+                parentID = obj[id].parentId;
                 if(!obj[id].parentId) {
-                    // отрисовываем корневоей элемент
                     self.createRootColumn(id);
-
-                    childrenArr = self.config.cache[id].children;
-                    // отрисовываем второй уровень
-                    self.createChildColumn(childrenArr);
                 } else {
-                    childrenArr = self.config.cache[id].children;
+                    childrenArr = self.getOwnChildren(parentID);
                     self.createChildColumn(childrenArr);
                 }
             }
+        };
+
+        this.getOwnChildren = function(parentID) {
+            var obj = self.config.cache,
+                childrenArr = [];
+
+            for (var key in obj) {
+                if (obj[key].parentId == parentID) {
+                    childrenArr.push(key);
+                }
+            }
+
+            console.log(childrenArr);
+            return childrenArr;
         };
 
         this.createRootColumn = function (id) {
@@ -59,31 +70,32 @@ $(document).ready(function(){
                 template: _.template(document.getElementById('organigram-template').innerHTML)
             });
 
-            self.config.thatEl = self.config.cache[id].parentId;
-
             canvas.append(tmpl.getElem());
         };
 
-        this.createChildColumn = function (ids) {
-            var ul = $('<ul class="tree"></ul>'),
-                el, tmpl, thatEl, thatParentId;
+        this.createChildColumn = function (childrenArr) {
+            var ul = document.createElement('ul'),
+                el, tmpl;
 
-            for(var id in ids) {
-                thatEl = self.config.cache[ids[id]],
-                thatParentId = thatEl.parentId;
-                el = $('#' + thatParentId);
+            ul.className = 'tree';
+
+            for(var id in childrenArr) {
+                thatEl = self.config.cache[childrenArr[id]].parentId;
+                el = document.getElementById(thatEl);
 
                 tmpl = new self.RenderTree({
-                    data: self.config.cache[ids[id]],
-                    myId: ids[id],
+                    data: self.config.cache[childrenArr[id]],
+                    myId: childrenArr[id],
                     template: _.template(document.getElementById('organigram-template').innerHTML)
                 });
 
+                // el = document.getElementById(self.config.thatEl);
 
-                ul.append(tmpl.getElem());
-                el.append(ul);
+                ul.appendChild(tmpl.getElem());
+                el.appendChild(ul);
             }
         };
+
 
         this.RenderTree = function (options) {
             var elem;

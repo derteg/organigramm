@@ -1,14 +1,12 @@
 $(document).ready(function(){
     var lmiOrganigramm = new Organigramm || {};
 
-    // Organigramm.namespace = function () {
-    //
-    // }
-
     function Organigramm () {
+        var COLS_COUNT = 3;
+
         var self = this,
             workspace = document.getElementById('organigram'),
-            canvas = $('.organigram__canvas');
+            canvas = workspace.querySelector('.organigram__canvas');
 
         this.config = {
             thatEl: '',
@@ -16,51 +14,47 @@ $(document).ready(function(){
         };
 
         this.initEvents = function () {
-            self.getData();
-
-            
+            $(canvas).on('click', '.organigram-depart__title', self.handleGrowTree);
         };
 
         this.handleGrowTree = function (event) {
-            console.log(event.type);
+            var target = event.currentTarget,
+                id = target.getAttribute('data-leaf-id');
+
+            self.getData('data/ExecuteMethodLeaf.json');
+
+            return false;
         };
 
-        this.getData = function () {
+        this.getData = function (url) {
             $.ajax({
-                url: 'data/ExecuteMethod.json',
+                url: url,
                 success: self.handleTree
             });
         };
 
         this.handleTree = function (obj) {
-            var parentID,
-                childrenArr = [];
+            var childrenArr = [];
 
-            self.config.cache = obj;
+            self.config.cache = $.extend(true, self.config.cache, obj);
 
             for(var id in obj) {
-                parentID = obj[id].parentId;
+                childrenArr = self.config.cache[id].children;
                 if(!obj[id].parentId) {
+                    // отрисовываем корневоей элемент
                     self.createRootColumn(id);
+
+                    // отрисовываем второй уровень
+                    self.createChildColumn(childrenArr);
                 } else {
-                    childrenArr = self.getOwnChildren(parentID);
+                    if(obj[id].level > COLS_COUNT) {
+                        childrenArr = Object.keys(obj);
+                        self.createChildColumn(childrenArr);
+                        return;
+                    }
                     self.createChildColumn(childrenArr);
                 }
             }
-        };
-
-        this.getOwnChildren = function(parentID) {
-            var obj = self.config.cache,
-                childrenArr = [];
-
-            for (var key in obj) {
-                if (obj[key].parentId == parentID) {
-                    childrenArr.push(key);
-                }
-            }
-
-            console.log(childrenArr);
-            return childrenArr;
         };
 
         this.createRootColumn = function (id) {
@@ -70,7 +64,7 @@ $(document).ready(function(){
                 template: _.template(document.getElementById('organigram-template').innerHTML)
             });
 
-            canvas.append(tmpl.getElem());
+            canvas.appendChild(tmpl.getElem());
         };
 
         this.createChildColumn = function (childrenArr) {
@@ -120,5 +114,6 @@ $(document).ready(function(){
         }
     }
 
+    lmiOrganigramm.getData('data/ExecuteMethod.json');
     lmiOrganigramm.initEvents();
 });

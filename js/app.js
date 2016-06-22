@@ -206,6 +206,8 @@ $(document).ready(function(){
             var target = event.currentTarget,
                 breadId = target.getAttribute('data-that-id');
 
+            $(target).nextAll().remove().end().remove();
+            
             self.hideChildren(breadId);
         };
 
@@ -272,15 +274,6 @@ $(document).ready(function(){
                     canvas.style.left = (obj[hideArr[i]].level - COLS_COUNT) * parseFloat(33.3) + '%';
                 }
             }
-
-            // if (hasClass(cardBox, 'tree__node_is_opened')) {
-            //     removeClass(cardBox, openClassName);
-            //     childTree.style.display = 'none';
-            //     canvas.style.left = canvasPosL + parseFloat(33.3) + '%';
-            //
-            //     // re-define last current box
-            //     self.config.cardBox = $(cardBox).closest('.tree__node_is_opened').get(0);
-            // }
         };
 
         this.getData = function (url) {

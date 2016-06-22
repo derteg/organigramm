@@ -106,12 +106,6 @@ $(document).ready(function(){
         return new RegExp('(^| )' + className + '( |$)', 'gi').test(el.className);
     }
 
-    function removeClass(block, rClassName) {
-        if (block.classList)
-            block.classList.remove(rClassName);
-        else
-            block.className = block.className.replace(new RegExp('(^|\\b)' + rClassName.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
-    }
 
     var lmiOrganigramm = new Organigramm || {};
 
@@ -125,11 +119,9 @@ $(document).ready(function(){
             backBtn = workspace.querySelector('.organigram__back_mode_back');
 
         this.config = {
-            thatEl: '',
             cache: {},
             cardBox: '',
             lastId: '',
-            backLevel: '',
             breadcrumbs: {}
         };
 
@@ -170,7 +162,7 @@ $(document).ready(function(){
                 i, size;
 
             li.className = 'organigram-breacrumbs__item';
-            li.setAttribute('data-that-level',  breadcrumbs[parentBread2].level.toString());
+            li.setAttribute('data-that-level',  breadcrumbs[parentBread2].level + COLS_COUNT);
             li.setAttribute('data-that-id', parentBread2);
             li.innerText = '';
             title.className = 'organigram-breacrumbs__title';
@@ -207,22 +199,14 @@ $(document).ready(function(){
                 breadId = target.getAttribute('data-that-id');
 
             $(target).nextAll().remove().end().remove();
-            
-            self.hideChildren(breadId);
-        };
 
-        this.backSteper = function(event) {
-            var target = event.currentTarget,
-                cardLevel = self.config.cardBox.getAttribute('data-that-level'),
-                thatLevel = target.getAttribute('data-that-level');
+            self.hideBreadsChildren(breadId);
 
-            thatLevel -= 1;
-            target.setAttribute('data-that-level', thatLevel);
-            self.hideChildren();
-
-            // hide backBtn if 3
-            if(thatLevel == COLS_COUNT) {
-                backBtn.style.display = 'none';
+            // set canvas position
+            if(self.config.cache[breadId].level > COLS_COUNT) {
+                canvas.style.left = -(self.config.cache[breadId].level - COLS_COUNT) * parseFloat(33.3) + '%';
+            } else {
+                canvas.style.left = 0;
             }
         };
 
@@ -243,7 +227,7 @@ $(document).ready(function(){
             }
         };
 
-        this.hideChildren = function(firstId) {
+        this.hideBreadsChildren = function(firstId) {
             var canvasPosL = parseFloat(canvas.style.left) || 0,
                 lastId = self.config.lastId,
                 obj = self.config.cache,
@@ -262,18 +246,55 @@ $(document).ready(function(){
 
             createHideList();
 
-
             for(var i = 0; i < hideArr.length; i++) {
                 if(obj[hideArr[i]].level >= COLS_COUNT) {
-                    var tree = document.getElementById(hideArr[i]),
+                    var tree = $('#' + hideArr[i]),
                         treeChild = $(tree).find('.tree');
 
-                    treeChild.removeClass('tree__node_is_opened');
-                    treeChild.hide();
+                    tree.removeClass('tree__node_is_opened');
+                    treeChild.remove();
 
-                    canvas.style.left = (obj[hideArr[i]].level - COLS_COUNT) * parseFloat(33.3) + '%';
+                    backBtn.setAttribute('data-that-level', obj[hideArr[i]].level);
+
+                    if(backBtn.getAttribute('data-that-level') == COLS_COUNT) {
+                        $(backBtn).hide();
+                    }
                 }
             }
+        };
+
+        this.backSteper = function(event) {
+            var target = event.currentTarget,
+                thatLevel = target.getAttribute('data-that-level');
+
+            hideBreadcrumb();
+
+            thatLevel -= 1;
+            target.setAttribute('data-that-level', thatLevel);
+            self.hideBackChildren(thatLevel);
+
+            if(thatLevel == COLS_COUNT) {
+                backBtn.style.display = 'none';
+            }
+
+            function hideBreadcrumb() {
+                $(breadcrumbsNode).find('li').filter(function(index) {
+                    if(thatLevel >= $(this).attr('data-that-level')) {
+                        $(this).remove();
+                    }
+                });
+            }
+        };
+
+        this.hideBackChildren = function(thatLevel) {
+            var lastId = self.config.lastId,
+                tree = $('#' + lastId),
+                treeChild = $(tree).find('.tree');
+
+            tree.removeClass('tree__node_is_opened');
+            treeChild.remove();
+
+            canvas.style.left = -(thatLevel - COLS_COUNT) * parseFloat(33.3) + '%';
         };
 
         this.getData = function (url) {

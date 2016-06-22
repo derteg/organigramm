@@ -10,6 +10,8 @@
 </head>
 <body>
 	<div id="organigram" class="organigram">
+        <div class="organigram__back organigram__back_mode_back">Назад</div>
+        <ul class="organigram-breacrumbs"></ul>
 		<div class="organigram__content">
 			<ul class="tree organigram__canvas"></ul>
 		</div>
@@ -18,9 +20,9 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/es5-shim/4.5.7/es5-shim.min.js"></script>
 	<script type='text/javascript' src='js/lodash.js'></script>
 	<script type="text/template" id="organigram-template">
-		<li class="tree__node" id="<%-myId%>">
-			<div class="organigram-depart__title" data-leaf-id="<%-myId%>">
-				<a class="organigram-depart__name" href="#"><%-unitName%></a>
+		<li class="tree__node" id="<%-myId%>" data-that-level="<%-level%>">
+			<div class="organigram-depart__title">
+				<a class="organigram-depart__name" href="#0"><%-unitName%></a>
 			</div>
 			<div class="organigram-user">
 				<div class="organigram-user__photo">

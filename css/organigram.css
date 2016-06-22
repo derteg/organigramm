@@ -28,6 +28,8 @@
     position: relative;
     box-sizing: border-box;
     height: 1100px;
+    left: 0;
+    width: 1350px;
 }
 
     .organigram._filter_enabled .organigram__canvas {
@@ -500,9 +502,13 @@
 .organigram__content {
     margin: 0 auto;
     height: 100%;
-    padding-top: 180px;
+    padding-top: 30px;
     padding-left: 150px;
     position: absolute;
+}
+
+.organigram__back_mode_back {
+    display: none;
 }
 
 .organigram__sidebar {

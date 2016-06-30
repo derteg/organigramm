@@ -106,7 +106,6 @@ $(document).ready(function(){
         return new RegExp('(^| )' + className + '( |$)', 'gi').test(el.className);
     }
 
-
     var lmiOrganigramm = new Organigramm || {};
 
     function Organigramm () {

@@ -1,409 +1,417 @@
-// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
-if (!Object.keys) {
-    Object.keys = (function() {
-        'use strict';
-        var hasOwnProperty = Object.prototype.hasOwnProperty,
-            hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
-            dontEnums = [
-                'toString',
-                'toLocaleString',
-                'valueOf',
-                'hasOwnProperty',
-                'isPrototypeOf',
-                'propertyIsEnumerable',
-                'constructor'
-            ],
-            dontEnumsLength = dontEnums.length;
+var LMI = LMI || {};
+LMI.Organigram = LMI.Organigram || {};
 
-        return function(obj) {
-            if (typeof obj !== 'object' && (typeof obj !== 'function' || obj === null)) {
-                throw new TypeError('Object.keys called on non-object');
-            }
 
-            var result = [], prop, i;
+(function ($, organigram) {
+    var COLS_COUNT = 3;
+    var MAGIC_PADDING = 300;
 
-            for (prop in obj) {
-                if (hasOwnProperty.call(obj, prop)) {
-                    result.push(prop);
-                }
-            }
+    var $workspace = $('#organigram'),
+        $canvas = $('.organigram__canvas', $workspace),
+        $breadcrumbsList = $('.organigram-breacrumbs', $workspace),
+        $backBtn = $('.organigram__back_mode_back', $workspace),
+        $titlesList = $('.organigram-titles', $workspace);
 
-            if (hasDontEnumBug) {
-                for (i = 0; i < dontEnumsLength; i++) {
-                    if (hasOwnProperty.call(obj, dontEnums[i])) {
-                        result.push(dontEnums[i]);
-                    }
-                }
-            }
-            return result;
-        };
-    }());
-}
-
-// Source: https://github.com/Alhadis/Snippets/blob/master/js/polyfills/IE8-child-elements.js
-if(!("firstElementChild" in document.documentElement)){
-    Object.defineProperty(Element.prototype, "firstElementChild", {
-        get: function(){
-            for(var nodes = this.children, n, i = 0, l = nodes.length; i < l; ++i)
-                if(n = nodes[i], 1 === n.nodeType) return n;
-            return null;
-        }
-    });
-}
-
-// Source: https://github.com/Alhadis/Snippets/blob/master/js/polyfills/IE8-child-elements.js
-if(!("nextElementSibling" in document.documentElement)){
-    Object.defineProperty(Element.prototype, "nextElementSibling", {
-        get: function(){
-            var e = this.nextSibling;
-            while(e && 1 !== e.nodeType)
-                e = e.nextSibling;
-            return e;
-        }
-    });
-}
-
-// https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Global_Objects/Array/filter#Polyfill
-if (!Array.prototype.filter) {
-    Array.prototype.filter = function(fun/*, thisArg*/) {
-        'use strict';
-
-        if (this === void 0 || this === null) {
-            throw new TypeError();
-        }
-
-        var t = Object(this);
-        var len = t.length >>> 0;
-        if (typeof fun !== 'function') {
-            throw new TypeError();
-        }
-
-        var res = [];
-        var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
-        for (var i = 0; i < len; i++) {
-            if (i in t) {
-                var val = t[i];
-
-                // ПРИМЕЧАНИЕ: Технически, здесь должен быть Object.defineProperty на
-                //             следующий индекс, поскольку push может зависеть от
-                //             свойств на Object.prototype и Array.prototype.
-                //             Но этот метод новый и коллизии должны быть редкими,
-                //             так что используем более совместимую альтернативу.
-                if (fun.call(thisArg, val, i, t)) {
-                    res.push(val);
-                }
-            }
-        }
-
-        return res;
+    organigram.config = {
+        cache: {},
+        lastId: '',
+        open: false,
+        breadcrumbs: {}
     };
-}
 
-$(document).ready(function(){
-    "use strict";
+    initEvents = function () {
+        $canvas.on('click', '.organigram-depart__title', organigram.handleCard);
+        $workspace.on('click', '.organigram__back_mode_back', organigram.handleId);
+        $breadcrumbsList.on('click', '.organigram-breacrumbs__item', organigram.handleId);
+    };
 
-    function hasClass(el, className) {
-        return new RegExp('(^| )' + className + '( |$)', 'gi').test(el.className);
-    }
+    organigram.handleCard = function (event) {
+        var target = event.currentTarget,
+            thatId = target.parentNode.id,
+            openBool = organigram.config.open;
 
-    var lmiOrganigramm = new Organigramm || {};
+        organigram.hideSiblingsChildren(thatId);
+        organigram.hideChildren(thatId);
 
-    function Organigramm () {
-        var COLS_COUNT = 3;
+        if (!$('#' + thatId).hasClass('tree__node_is_opened')) {
+            organigram.showChildren(thatId);
+            organigram.handleStep(thatId, true);
+            organigram.buildBreadcrumbs(thatId, true);
+        } else {
+            organigram.handleStep(thatId, false);
+            organigram.buildBreadcrumbs(thatId, false);
+        }
+    };
 
-        var self = this,
-            workspace = document.getElementById('organigram'),
-            canvas = workspace.querySelector('.organigram__canvas'),
-            breadcrumbsNode = workspace.querySelector('.organigram-breacrumbs'),
-            backBtn = workspace.querySelector('.organigram__back_mode_back');
+    organigram.buildTitles = function (thatId, thatLevel) {
+        var titlesHTML = "",
+            i,
+            titlesArr = ['Руководители', 'Заместители', 'Подразделения и регионы', 'Магазины'];
 
-        this.config = {
-            cache: {},
-            cardBox: '',
-            lastId: '',
-            breadcrumbs: {}
-        };
+        for (i = 0; i < titlesArr.length; i++) {
+            titlesHTML += '<div class="organigram-titles__item">' + titlesArr[i] + '</div>';
+        }
 
-        this.initEvents = function () {
-            $(canvas).on('click', '.organigram-depart__title', self.handleGrowTree);
-            $(workspace).on('click', '.organigram__back_mode_back', self.backSteper);
-            $(breadcrumbsNode).on('click', '.organigram-breacrumbs__item', self.breadcrumbsSteper);
-        };
+        $titlesList.html(titlesHTML);
+    };
 
-        this.handleGrowTree = function (event) { // transform pos columns
-            var target = event.currentTarget,
-                thatId = target.parentNode.id,
-                thatLevel = target.parentNode.getAttribute('data-that-level');
 
-            //cahce currentBox and currentLevel
-            self.config.cardBox = target.parentNode;
-            self.config.lastId = self.config.cardBox.id;
+    organigram.buildBreadcrumbs = function (thatId, direction) {
+        // direction up/down
 
-            self.showChildren();
+        var obj = organigram.config.cache,
+            ids = organigram.config.breadcrumbs,
+            level = obj[thatId].level;
 
-            // set level on backBtn
-            backBtn.setAttribute('data-that-level', +thatLevel + 1);
-            backBtn.style.display = 'block';
-
-            self.buildBreadcrumbs(thatLevel, thatId);
-
-            return false; // stop-prevent
-        };
-
-        this.buildBreadcrumbs = function(thatLevel, thatId) {
-            var li = document.createElement('li'),
-                title = document.createElement('div'),
-                subTitle = document.createElement('div'),
-                breadcrumbs = self.config.breadcrumbs,
-                parentBread1 = breadcrumbs[thatId].parentId,
-                parentBread2 = breadcrumbs[parentBread1].parentId, // stand up on two level top
-                breadLevel,
-                i, size;
-
-            li.className = 'organigram-breacrumbs__item';
-            li.setAttribute('data-that-level',  breadcrumbs[parentBread2].level + COLS_COUNT);
-            li.setAttribute('data-that-id', parentBread2);
-            li.innerText = '';
-            title.className = 'organigram-breacrumbs__title';
-            subTitle.className = 'organigram-breacrumbs__sub-title';
-
-            var breadcrumbsAllLi = breadcrumbsNode.getElementsByTagName('li');
-
-            // add no more one item
-            if (breadcrumbsAllLi.length == 0) {
-                setBreadcrumsTitles();
-            } else {
-                for(i = 0, size = breadcrumbsAllLi.length; i < size; i++) {
-                    breadLevel = breadcrumbsAllLi[i].getAttribute('data-that-level');
-
-                    if(breadLevel != breadcrumbs[parentBread2].level) {
-                        setBreadcrumsTitles();
-                    }
-                }
+        if (!ids.hasOwnProperty(thatId) && !!direction) {
+            if (!Object.keys(ids).length) {
+                ids[thatId] = {};
+                ids[thatId].level = level;
             }
 
-            function setBreadcrumsTitles() {
-                title.innerText = breadcrumbs[parentBread2].breadcrumb;
-                subTitle.innerText = breadcrumbs[parentBread2].userName;
+            for (var i in ids) {
+                if (level <= ids[i].level) {
+                    delete ids[i];
+                }
+
+                ids[thatId] = {};
+                ids[thatId].level = level;
+            }
+        } else if(!direction) {
+            for (var i in ids) {
+                if (level <= ids[i].level) {
+                    delete ids[i];
+                }
+            }
+        }
+
+        $breadcrumbsList.empty();
+
+        if (Object.keys(ids).length) {
+            create(ids);
+        }
+
+        function create(ids) {
+            var ul = document.createElement('ul');
+
+            ul.className = 'organigram-breacrumbs__list';
+
+            for (var key in ids) {
+                build(key);
+            }
+
+            function build(id) {
+                var li = document.createElement('li'),
+                    title = document.createElement('div'),
+                    subTitle = document.createElement('div'),
+                    obj1, obj2;
+
+                obj1 = obj[id].parentId;
+                obj2 = obj[obj1].parentId;
+
+                li.className = 'organigram-breacrumbs__item';
+                li.setAttribute('data-that-id', id);
+
+                title.className = 'organigram-breacrumbs__title';
+                title.innerText = (typeof obj[obj2].jobTitle != 'object') ? obj[obj2].jobTitle : obj[obj2].unitName;
+
+                subTitle.className = 'organigram-breacrumbs__sub-title';
+                subTitle.innerText = (typeof obj[obj2].userName != 'object') ? obj[obj2].userName : "";
 
                 li.appendChild(title);
                 li.appendChild(subTitle);
-                breadcrumbsNode.appendChild(li);
-            }
-        };
 
-        this.breadcrumbsSteper = function(event) {
-            event.stopPropagation();
-            var target = event.currentTarget,
-                breadId = target.getAttribute('data-that-id');
-
-            $(target).nextAll().remove().end().remove();
-
-            self.hideBreadsChildren(breadId);
-
-            // set canvas position
-            if(self.config.cache[breadId].level > COLS_COUNT) {
-                canvas.style.left = -(self.config.cache[breadId].level - COLS_COUNT) * parseFloat(33.3) + '%';
-            } else {
-                canvas.style.left = 0;
-            }
-        };
-
-        this.showChildren = function() {
-            var cardBox = self.config.cardBox,
-                childTree = self.config.cardBox.querySelector('.tree'),
-                canvasPosL = parseFloat(canvas.style.left) || 0;
-
-            if (!hasClass(cardBox, 'tree__node_is_opened')) {
-                // if hasn't child data, download JSON
-                if (!childTree) {
-                    self.getData('data/ExecuteMethodLeaf.json')
-                } else {
-                    cardBox.className += ' tree__node_is_opened';
-                    childTree.style.display = 'inline-block';
-                }
-                canvas.style.left = canvasPosL - parseFloat(33.3) + '%';
-            }
-        };
-
-        this.hideBreadsChildren = function(firstId) {
-            var canvasPosL = parseFloat(canvas.style.left) || 0,
-                lastId = self.config.lastId,
-                obj = self.config.cache,
-                hideArr = [lastId];
-
-            function createHideList() {
-                var current = obj[lastId];
-                var parentId;
-
-                do {
-                    parentId = current.parentId;
-                    hideArr.push(parentId);
-                    current = obj[parentId];
-                } while(parentId != firstId);
+                ul.appendChild(li);
             }
 
-            createHideList();
+            $breadcrumbsList.append(ul);
+        }
+    };
 
-            for(var i = 0; i < hideArr.length; i++) {
-                if(obj[hideArr[i]].level >= COLS_COUNT) {
-                    var tree = $('#' + hideArr[i]),
-                        treeChild = $(tree).find('.tree');
+    organigram.handleId = function (event) {
+        var obj = organigram.config.cache,
+            target = event.currentTarget,
+            thatId = target.getAttribute('data-that-id');
+        parentId = obj[thatId].parentId;
 
-                    tree.removeClass('tree__node_is_opened');
-                    treeChild.remove();
+        organigram.hideChildren(thatId);
+        organigram.handleStep(thatId, false);
+        organigram.setPosition(thatId, false);
+        organigram.buildBreadcrumbs(thatId, false);
+    };
 
-                    backBtn.setAttribute('data-that-level', obj[hideArr[i]].level);
+    organigram.handleStep = function (thatId, direction) {
+        // direction up/down
 
-                    if(backBtn.getAttribute('data-that-level') == COLS_COUNT) {
-                        $(backBtn).hide();
-                    }
-                }
-            }
-        };
+        var obj = organigram.config.cache,
+            parentId = obj[thatId].parentId,
+            level = (direction) ? +obj[parentId].level + 1 : +obj[parentId].level;
 
-        this.backSteper = function(event) {
-            var target = event.currentTarget,
-                thatLevel = target.getAttribute('data-that-level');
+        $backBtn.attr('data-that-id', (direction) ? thatId : parentId);
 
-            hideBreadcrumb();
+        if (level < COLS_COUNT) {
+            $backBtn.css('display', 'none');
 
-            thatLevel -= 1;
-            target.setAttribute('data-that-level', thatLevel);
-            self.hideBackChildren(thatLevel);
+            return;
+        }
 
-            if(thatLevel == COLS_COUNT) {
-                backBtn.style.display = 'none';
-            }
+        $backBtn.css('display', 'inline-block');
+    };
 
-            function hideBreadcrumb() {
-                $(breadcrumbsNode).find('li').filter(function(index) {
-                    if(thatLevel >= $(this).attr('data-that-level')) {
-                        $(this).remove();
-                    }
-                });
-            }
-        };
 
-        this.hideBackChildren = function(thatLevel) {
-            var lastId = self.config.lastId,
-                tree = $('#' + lastId),
-                treeChild = $(tree).find('.tree');
+    organigram.showChildren = function (thatId) {
+        var obj = organigram.config.cache,
+            $cardBox = $('#' + thatId),
+            $childTree = $cardBox.find('.tree');
 
-            tree.removeClass('tree__node_is_opened');
-            treeChild.remove();
-
-            canvas.style.left = -(thatLevel - COLS_COUNT) * parseFloat(33.3) + '%';
-        };
-
-        this.getData = function (url) {
-            $.ajax({
-                url: url,
-                success: self.handleTree
+        if (!$cardBox.hasClass('tree__node_is_opened')) {
+            organigram.getChilds(thatId).done(function (data) {
+                organigram.handleData(data);
+                organigram.setPosition(thatId, true);
             });
-        };
+        } else {
+            organigram.setPosition(thatId, false);
+        }
+    };
 
-        this.handleTree = function (obj) {
-            var childrenArr,
-                id;
+    organigram.hideChildren = function (thatId) {
+        var obj = organigram.config.cache,
+            hideArr = [],
+            newId = obj[thatId].parentId;
 
-            self.config.cache = $.extend(true, self.config.cache, obj);
+        function createhideChildren() {
+            var currentObj = obj[thatId];
+            var parentId = thatId;
 
-            for(id in obj) {
-                if(!obj.hasOwnProperty(id)) continue;
+            do {
+                hideArr.push(parentId);
+                parentId = currentObj.parentId;
+                currentObj = obj[parentId];
+            } while (parentId != newId);
+        }
 
-                // cache breadcrumbs obj
-                self.config.breadcrumbs[id] = {};
-                self.config.breadcrumbs[id]['breadcrumb'] = obj[id].breadcrumbs;
-                self.config.breadcrumbs[id]['parentId'] = obj[id].parentId;
-                self.config.breadcrumbs[id]['userName'] = obj[id].userName;
-                self.config.breadcrumbs[id]['level'] = obj[id].level;
+        createhideChildren();
 
-                // save current children
-                childrenArr = self.config.cache[id].children;
-                if(!obj[id].parentId) {
-                    // first column
-                    self.createRootColumn(id);
+        for (var i = 0; i < hideArr.length; i++) {
+            if (obj[hideArr[i]].level >= COLS_COUNT) {
+                var $tree = $('#' + hideArr[i]),
+                    $treeChild = $tree.find('.tree');
 
-                    // second column
-                    if(!!childrenArr.length) {
-                        self.createChildColumn(childrenArr);
-                    }
-                } else {
-                    if(obj[id].level > COLS_COUNT) {
-                        childrenArr = Object.keys(obj);
+                $tree.removeClass('tree__node_is_opened');
+                $treeChild.remove();
+            }
+        }
+    };
 
-                        self.createChildColumn(childrenArr);
-                        return false;
-                    }
-                    if(!!childrenArr.length) {
-                        self.createChildColumn(childrenArr);
-                    }
+    organigram.hideSiblingsChildren = function (thatId) {
+        var level = organigram.config.cache[thatId].level,
+            $cardBoxes = $('.tree__node_is_opened[data-that-level=' + level + ']:not(#' + thatId + ')', $workspace),
+            $cardBox = $('#' + thatId),
+            $siblings = $cardBox.siblings('.tree__node_is_opened');
+
+        if (!$cardBoxes.length) {
+            return;
+        }
+        $cardBoxes.each(function (el, index) {
+            $(this).removeClass('tree__node_is_opened').find('.tree').remove();
+        });
+    };
+
+    organigram.setPosition = function (thatId, direction) {
+        // direction up/down
+        var obj = organigram.config.cache,
+            $cardBox = $('#' + thatId),
+            level = (direction) ? +obj[thatId].level + 1 : obj[thatId].level;
+
+        if (level >= COLS_COUNT) {
+            $canvas.get(0).style.left = -(+level - +COLS_COUNT) * parseFloat(33.3) + '%';
+            $cardBox.find('ul').css('position', 'absolute');
+        } else {
+            $canvas.get(0).style.left = 0;
+        }
+
+        function calcPosition() {
+            var canvasT = $canvas.offset().top,
+                canvasH = $canvas.height(),
+                cardT = $cardBox.offset().top,
+                childH = $cardBox.find('ul').height(),
+                treeH = $canvas.find('.tree:first-child'),
+                distance = Math.abs(canvasT - cardT);
+
+            console.log('height', childH);
+            console.log('distance', distance);
+            console.log('canvaH', canvasH);
+
+            if (childH < distance + MAGIC_PADDING) {
+                $cardBox.find('ul').css('top', -distance + (distance - childH) + MAGIC_PADDING);
+            } else {
+                $cardBox.find('ul').css('top', -distance);
+            }
+
+            if (canvasH < childH + distance) {
+                $canvas.height(distance + childH + -MAGIC_PADDING);
+            } else {
+                $canvas.height(treeH);
+            }
+        }
+
+        calcPosition();
+    };
+
+
+    organigram.handleData = function (obj) {
+        var children,
+            id;
+
+        organigram.config.cache = $.extend(true, organigram.config.cache, obj);
+
+        for (id in obj) {
+            // save current children
+            children = organigram.config.cache[id].children;
+            if (!obj[id].parentId) {
+                // first column
+                organigram.createRootColumn(id);
+
+                // second column
+                if (!!children.length) {
+                    organigram.createChildColumn(children);
+                }
+            } else {
+                if (obj[id].level > COLS_COUNT) {
+                    children = Object.keys(obj);
+
+                    organigram.createChildColumn(children);
+                    return false;
+                }
+                if (!!children.length) {
+                    organigram.createChildColumn(children);
                 }
             }
-        };
+        }
+    };
 
-        this.createRootColumn = function (id) {
-            var tmpl = new self.RenderTree({
-                data: self.config.cache[id],
-                myId: id,
+    organigram.createRootColumn = function (id) {
+        var tmpl = new organigram.RenderTree({
+            data: organigram.config.cache[id],
+            myId: id,
+            template: _.template(document.getElementById('organigram-template').innerHTML)
+        });
+
+        $canvas.find('.tree').append(tmpl.getElem());
+    };
+
+    organigram.createChildColumn = function (ids) {
+        var obj = organigram.config.cache,
+            ul = document.createElement('ul'),
+            thatEl, el, tmpl;
+
+        ul.className = 'tree';
+
+        for (var id = 0; id < ids.length; id++) {
+            key = ids[id];
+            thatId = obj[key].parentId;
+            el = document.getElementById(thatId);
+
+            if (thatId == null) {
+                continue;
+            }
+
+            tmpl = new organigram.RenderTree({
+                data: obj[key],
+                myId: key,
                 template: _.template(document.getElementById('organigram-template').innerHTML)
             });
 
-            canvas.appendChild(tmpl.getElem());
-        };
-
-        this.createChildColumn = function (childrenArr) {
-            var ul = document.createElement('ul'),
-                id, thatEl, el, tmpl, key;
-
-            ul.className = 'tree';
-
-            for(id = 0; id < childrenArr.length; id++) {
-                key = childrenArr[id];
-                thatEl = self.config.cache[key].parentId;
-                el = document.getElementById(thatEl);
-
-                tmpl = new self.RenderTree({
-                    data: self.config.cache[key],
-                    myId: key,
-                    template: _.template(document.getElementById('organigram-template').innerHTML)
-                });
-
-                ul.appendChild(tmpl.getElem());
-
-                if (!$(el).hasClass('tree__node_is_opened')) {
-                    $(el).addClass('tree__node_is_opened');
-                }
-
-                el.appendChild(ul);
-            }
-        };
-
-        this.RenderTree = function (options) {
-            var elem;
-
-            function getElem () {
-                if (!elem) render();
-                return elem;
-            }
-
-            function render () {
-                // добавляем ID текущего пользователя
-                options.data.myId = options.myId;
-
-                var html = options.template(options.data);
-
-                elem = document.createElement('div');
-                elem.className = 'tree';
-                elem.innerHTML = html;
-                elem = elem.firstElementChild;
-            }
-
-            this.getElem = getElem;
+            $(ul).append(tmpl.getElem());
         }
+
+        $(el).append(ul);
+        $(el).addClass('tree__node_is_opened').find('li:last-child').addClass('_last');
+    };
+
+    organigram.RenderTree = function (options) {
+        var elem;
+
+        function getElem() {
+            if (!elem) render();
+            return elem;
+        }
+
+        function render() {
+            // current uzor ID
+            options.data.myId = options.myId;
+            options.data.userPic = (!!options.data.avatar) ? options.data.avatar : '/_layouts/15/LMI.SN.Site/img/avatar.placeholder.100.jpg';
+
+            var html = options.template(options.data);
+
+            elem = document.createElement('div');
+            elem.className = 'tree';
+            elem.innerHTML = html;
+            elem = elem.firstElementChild;
+        }
+
+        this.getElem = getElem;
+    };
+
+    function formatData(data) {
+        var result = {},
+            current = null;
+        for (var i = 0; i < data.length; i++) {
+            current = data[i];
+            result[current.treePath] = current;
+
+            current.children = $.map($.grep(data, function (d) {
+                return d.parentId == current.treePath && d.level == current.level + 1;
+            }), function (d) {
+                return d.treePath;
+            });
+
+            current.haveData = current.level < 3;
+            if (current.level == 1)
+                current.breadcrumbs = 'Руководители';
+            if (current.level == 2)
+                current.breadcrumbs = 'Заместители';
+            if (current.level == 3)
+                current.breadcrumbs = 'Подразделения и регионы';
+            if (current.level > 3)
+                current.breadcrumbs = (current.breadcrumbs || '').split(' – ').pop();
+            delete current.treePath;
+        }
+        return result;
     }
 
-    lmiOrganigramm.getData('data/ExecuteMethod.json');
-    lmiOrganigramm.initEvents();
-});
+    function executeMethod(methodName, params) {
+        var deferred = $.Deferred();
+        $.post('/_vti_bin/Anonymous.svc/ExecuteMethod', JSON.stringify({ methodName: methodName, data: JSON.stringify(params || {}) })).
+        done(function (response) {
+            var responseObj = JSON.parse(response);
+            if (responseObj && responseObj.error) {
+                console.log(responseObj.error);
+            }
+            deferred.resolve(responseObj);
+        });
+
+        return deferred.then(formatData);
+    };
+
+    organigram.getRoot = function () {
+        return executeMethod('GetTopLevelUnits', { organigramType: '01' });
+    };
+
+    organigram.getChilds = function (parentId) {
+        var level = organigram.config.cache[parentId].level;
+
+        return executeMethod('GetChildUnits', { parentPath: parentId, nextLevel: level });
+    };
+
+    $(function () {
+        organigram.getRoot().done(function (data) {
+            organigram.handleData(data);
+
+            organigram.buildTitles();
+        });
+    });
+
+    initEvents();
+
+})(jQuery, LMI.Organigram);
